@@ -5,7 +5,7 @@
       <div class="left-info">
         <span>账号: {{ username }}</span>
         <span>
-          Yuni账号数量:
+          UUU账号数量:
           <span class="count-pill">{{ tableData.length }}</span>
         </span>
         <span>
@@ -28,7 +28,7 @@
     <!-- 操作按钮区 -->
     <div class="toolbar">
       <div class="left-buttons">
-        <el-button type="primary" @click="handleAddAccount">添加Yuni账号</el-button>
+        <el-button type="primary" @click="handleAddAccount">添加UUU账号</el-button>
         <!--        <el-button type="danger" @click="handleAddPackage">添加套餐</el-button>-->
       </div>
       <div class="right-buttons" v-if="!isMobile">
@@ -249,7 +249,7 @@
           <img :src="qrcodeSrc" alt="二维码" />
         </div>
 
-        <div class="login-tip">使用与你app扫码登录</div>
+        <div class="login-tip">使用UUUTalk app扫码登录</div>
       </div>
     </el-drawer>
 
@@ -446,7 +446,7 @@ async function generateQRCode()  {
     const response = await getQRCode(packageId)
     const url = response.data
     qrcodeSrc.value = await QRCode.toDataURL(url)
-    let uuid = url.split('=')[1]
+    let uuid = url.split('/').pop()
     let count = 0
     let stopped = false
 
@@ -758,14 +758,14 @@ const handleStart = async (type) => {
     if (!valid) return
     try {
       const formData = new FormData()
-      formData.append('uid', currentItem.value.uid)
+      formData.append('uids', [currentItem.value.uid])
       formData.append('sendInterval', sendForm.value.sendInterval)
       formData.append('messageContent', sendForm.value.messageContent)
       formData.append('cvsType', type)
       if (sendForm.value.file) {
         formData.append('file', sendForm.value.file)
       }
-      const res = await addTask(formData)
+      const res = await addBatchTask(formData)
       await loadAccountList()
       console.log('任务添加成功:', res)
       ElMessage.success('任务已开始')
