@@ -118,22 +118,14 @@
         <el-table-column v-if="!isMobile" prop="mobile" label="手机号" />
         <el-table-column v-if="!isMobile" prop="groupSize" label="群组数量">
           <template #default="{ row }">
-            <span
-                :style="{
-                display: 'inline-block',
-                minWidth: '60px',
-                textAlign: 'center',
-                fontWeight: 'bold',
-                color: '#409EFF',
-                backgroundColor: '#ecf5ff',
-                border: '1px solid #b3d8ff',
-                borderRadius: '6px',
-                padding: '3px 8px',
-                transition: 'all 0.3s'
-              }"
+            <el-button
+                type="primary"
+                link
+                @click="openGroupDialog(row)"
+                :disabled="!row.groupSize"
             >
               {{ row.groupSize }}
-            </span>
+            </el-button>
           </template>
         </el-table-column>
         <el-table-column v-if="!isMobile" prop="friendSize" label="好友数量">
@@ -203,13 +195,13 @@
             <div class="action-buttons">
               <el-button :size="isMobile ? 'small' : 'default'" type="primary"
                          @click="handleSendGroup(row, 2)">发群</el-button>
-              <el-button v-if="!isMobile" :size="isMobile ? 'small' : 'default'" type="success"
+              <el-button :size="isMobile ? 'small' : 'default'" type="success"
                          @click="handleSendGroup(row, 1)">发好友</el-button>
               <el-button :size="isMobile ? 'small' : 'default'" type="danger"
                          @click="handleStopTask(row, 2)">
                 {{ isMobile ? '停止' : '停止群组任务' }}
               </el-button>
-              <el-button v-if="!isMobile" :size="isMobile ? 'small' : 'default'" type="danger"
+              <el-button :size="isMobile ? 'small' : 'default'" type="danger"
                          @click="handleStopTask(row, 1)">停止好友任务</el-button>
               <el-button :size="isMobile ? 'small' : 'default'" type="danger" @click="handleDelete(row)">删除</el-button>
             </div>
@@ -394,6 +386,25 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+        v-model="showGroupDialog"
+        title="群组信息"
+        width="520px"
+        :close-on-click-modal="false"
+        :show-close="true"
+    >
+      <el-table :data="groupList" style="width: 100%" v-loading="groupLoading">
+        <el-table-column prop="name" label="群组名称" />
+        <el-table-column prop="group_no" label="群组ID" />
+      </el-table>
+      <div v-if="!groupLoading && groupList.length === 0" class="no-data">暂无群组</div>
+      <template #footer>
+        <el-button type="primary" plain @click="showGroupDialog = false" style="width: 100%;">
+          关闭
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -418,7 +429,8 @@ import {
   updateNotice,
   deleteUser,
   stopTask,
-  stopAllTask
+  stopAllTask,
+  getGroups
 } from "@/api/system/yuni"
 
 const isMobile = ref(window.innerWidth <= 768)
@@ -877,6 +889,30 @@ const handleStopTask = async (row, cvsType) => {
 const handleCloseSendDrawer = () => {
   showSendDrawer.value = false
   isEditFrequencyMode.value = false
+}
+
+const showGroupDialog = ref(false)
+const groupList = ref([])
+const groupLoading = ref(false)
+
+const openGroupDialog = async (row) => {
+  const token = row?.token
+  if (!token) {
+    ElMessage.warning('该账号没有可用的 token')
+    return
+  }
+  showGroupDialog.value = true
+  groupLoading.value = true
+  groupList.value = []
+  try {
+    const res = await getGroups(token)
+    groupList.value = res.data || []
+  } catch (err) {
+    console.error('获取群组信息失败:', err)
+    ElMessage.error('获取群组信息失败，请稍后重试')
+  } finally {
+    groupLoading.value = false
+  }
 }
 </script>
 

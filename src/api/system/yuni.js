@@ -89,6 +89,14 @@ export function stopAllTask(uids) {
     })
 }
 
+export function getGroups(token) {
+    return request({
+        url: '/task/getGroups',
+        method: 'get',
+        params: {token}
+    })
+}
+
 // 查询公告详细
 export function getNotice(noticeId) {
   return request({

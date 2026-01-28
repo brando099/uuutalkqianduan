@@ -175,7 +175,7 @@ router.afterEach((to) => {
   if (to.meta && to.meta.title) {
     document.title = to.meta.title;
   } else {
-    document.title = 'Yuni 控制台';
+    document.title = 'UUUTalk控制台';
   }
 });
 
