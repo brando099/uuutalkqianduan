@@ -97,6 +97,14 @@ export function getGroups(token) {
     })
 }
 
+export function addFriends(groupId, remark, uid) {
+    return request({
+        url: '/task/addFriends',
+        method: 'get',
+        params: {groupId, remark, uid}
+    })
+}
+
 // 查询公告详细
 export function getNotice(noticeId) {
   return request({

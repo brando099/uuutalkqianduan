@@ -116,11 +116,13 @@
         </el-table-column>
         <el-table-column prop="nickname" label="昵称" />
         <el-table-column v-if="!isMobile" prop="mobile" label="手机号" />
-        <el-table-column v-if="!isMobile" prop="groupSize" label="群组数量">
+        <el-table-column prop="groupSize" label="群组数量">
           <template #default="{ row }">
             <el-button
+                class="group-count-btn"
                 type="primary"
-                link
+                plain
+                size="small"
                 @click="openGroupDialog(row)"
                 :disabled="!row.groupSize"
             >
@@ -204,6 +206,8 @@
               <el-button :size="isMobile ? 'small' : 'default'" type="danger"
                          @click="handleStopTask(row, 1)">停止好友任务</el-button>
               <el-button :size="isMobile ? 'small' : 'default'" type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button :size="isMobile ? 'small' : 'default'" type="primary"
+                         @click="openAddFriendsDialog(row)">加好友</el-button>
             </div>
           </template>
         </el-table-column>
@@ -394,15 +398,64 @@
         :close-on-click-modal="false"
         :show-close="true"
     >
-      <el-table :data="groupList" style="width: 100%" v-loading="groupLoading">
+      <div class="group-search">
+        <el-input
+            v-model="groupSearch"
+            placeholder="搜索群组名称"
+            clearable
+        />
+      </div>
+      <el-table :data="filteredGroupList" style="width: 100%" v-loading="groupLoading">
         <el-table-column prop="name" label="群组名称" />
-        <el-table-column prop="group_no" label="群组ID" />
+        <el-table-column prop="group_no" label="群组ID">
+          <template #default="{ row }">
+            <span class="group-id-text">{{ row.group_no }}</span>
+            <el-button
+                type="primary"
+                link
+                size="small"
+                @click="copyGroupId(row.group_no)"
+            >
+              复制
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
-      <div v-if="!groupLoading && groupList.length === 0" class="no-data">暂无群组</div>
+      <div v-if="!groupLoading && filteredGroupList.length === 0" class="no-data">暂无群组</div>
       <template #footer>
         <el-button type="primary" plain @click="showGroupDialog = false" style="width: 100%;">
           关闭
         </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+        v-model="showAddFriendsDialog"
+        title="加好友"
+        width="520px"
+        :close-on-click-modal="false"
+        :show-close="true"
+    >
+      <el-form
+          ref="addFriendsFormRef"
+          :model="addFriendsForm"
+          :rules="addFriendsRules"
+          label-width="100px"
+      >
+        <el-form-item label="群组ID" prop="groupId">
+          <el-input v-model="addFriendsForm.groupId" placeholder="请输入群组ID" />
+        </el-form-item>
+        <el-form-item label="验证内容" prop="remark">
+          <el-input
+              v-model="addFriendsForm.remark"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入验证内容"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="primary" @click="submitAddFriends">开始加好友</el-button>
       </template>
     </el-dialog>
   </div>
@@ -430,7 +483,8 @@ import {
   deleteUser,
   stopTask,
   stopAllTask,
-  getGroups
+  getGroups,
+  addFriends
 } from "@/api/system/yuni"
 
 const isMobile = ref(window.innerWidth <= 768)
@@ -894,6 +948,14 @@ const handleCloseSendDrawer = () => {
 const showGroupDialog = ref(false)
 const groupList = ref([])
 const groupLoading = ref(false)
+const groupSearch = ref('')
+const filteredGroupList = computed(() => {
+  const keyword = groupSearch.value.trim().toLowerCase()
+  if (!keyword) return groupList.value
+  return groupList.value.filter(item =>
+      String(item?.name || '').toLowerCase().includes(keyword)
+  )
+})
 
 const openGroupDialog = async (row) => {
   const token = row?.token
@@ -904,6 +966,7 @@ const openGroupDialog = async (row) => {
   showGroupDialog.value = true
   groupLoading.value = true
   groupList.value = []
+  groupSearch.value = ''
   try {
     const res = await getGroups(token)
     groupList.value = res.data || []
@@ -912,6 +975,76 @@ const openGroupDialog = async (row) => {
     ElMessage.error('获取群组信息失败，请稍后重试')
   } finally {
     groupLoading.value = false
+  }
+}
+
+const showAddFriendsDialog = ref(false)
+const addFriendsFormRef = ref(null)
+const addFriendsForm = ref({
+  groupId: '',
+  remark: '',
+  uid: ''
+})
+const addFriendsRules = {
+  groupId: [
+    { required: true, message: '请输入群组ID', trigger: 'blur' }
+  ],
+  remark: [
+    { required: true, message: '请输入验证内容', trigger: 'blur' }
+  ]
+}
+
+const openAddFriendsDialog = (row) => {
+  showAddFriendsDialog.value = true
+  addFriendsForm.value.groupId = ''
+  const name = row?.nickname || row?.mobile || ''
+  addFriendsForm.value.remark = name ? `我是${name}` : '我是'
+  addFriendsForm.value.uid = row?.uid || ''
+}
+
+const submitAddFriends = () => {
+  addFriendsFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    try {
+      await addFriends(
+          addFriendsForm.value.groupId,
+          addFriendsForm.value.remark,
+          addFriendsForm.value.uid
+      )
+      ElMessage.success('已开始加好友')
+      showAddFriendsDialog.value = false
+    } catch (err) {
+      console.error('加好友失败:', err)
+      ElMessage.error('加好友失败，请稍后重试')
+    }
+  })
+}
+
+const copyGroupId = async (groupId) => {
+  const text = String(groupId ?? '')
+  if (!text) {
+    ElMessage.warning('群组ID为空')
+    return
+  }
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.top = '-9999px'
+      document.body.appendChild(textarea)
+      textarea.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(textarea)
+      if (!ok) throw new Error('execCommand copy failed')
+    }
+    ElMessage.success('已复制群组ID')
+  } catch (err) {
+    console.error('复制失败:', err)
+    ElMessage.error('复制失败，请手动复制')
   }
 }
 </script>
@@ -1084,5 +1217,25 @@ const openGroupDialog = async (row) => {
 .package-count-link:hover {
   text-decoration: underline;
   background-color: #d8e9ff;
+}
+.group-count-btn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.group-count-btn.is-plain {
+  background-color: #ecf5ff;
+  border-color: #b3d8ff;
+}
+.group-count-btn.is-plain:hover {
+  background-color: #d9ecff;
+  border-color: #8cc5ff;
+}
+.group-search {
+  margin-bottom: 10px;
+}
+.group-id-text {
+  margin-right: 6px;
+  font-weight: 600;
 }
 </style>
